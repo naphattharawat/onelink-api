@@ -15,8 +15,9 @@ import Knex = require('knex');
 import { MySqlConnectionConfig } from 'knex';
 import { Router, Request, Response, NextFunction } from 'express';
 import { Jwt } from './models/jwt';
-
+const useragent = require('express-useragent');
 import indexRoute from './routes/index';
+import memberRoute from './routes/member';
 import loginRoute from './routes/login';
 import requestRoute from './routes/request';
 
@@ -47,7 +48,7 @@ let connection: MySqlConnectionConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   multipleStatements: true,
-  debug: true
+  debug: false
 }
 
 let db = Knex({
@@ -69,6 +70,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+app.use(useragent.express());
 let checkAuth = (req: Request, res: Response, next: NextFunction) => {
   let token: string = null;
 
@@ -95,6 +97,7 @@ let checkAuth = (req: Request, res: Response, next: NextFunction) => {
 
 app.use('/login', loginRoute);
 app.use('/api', checkAuth, requestRoute);
+app.use('/member', checkAuth, memberRoute);
 app.use('/', indexRoute);
 
 //error handlers

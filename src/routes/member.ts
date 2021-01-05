@@ -10,57 +10,22 @@ const serviceModel = new ServiceModel();
 const router: Router = Router();
 
 
-router.get('/:code', async (req: Request, res: Response) => {
-  try {
-    const db = req.db;
-    const code = req.params.code;
-    const ua = req.useragent;
-    const rs: any = await serviceModel.getRedirect(db, code);
-    if (rs.length) {
-      const webUrl = find(rs, { 'type': 'WEB' });
-      const iosUrl = find(rs, { 'type': 'IOS' });
-      const androidUrl = find(rs, { 'type': 'ANDROID' });
-      console.log(webUrl);
-
-      // find device;
-      if (ua.isiPhone || ua.isiPhoneNative || ua.isiPad) {
-        if (iosUrl) {
-          res.redirect(iosUrl.url);
-        } else {
-          res.redirect(webUrl.url);
-        }
-      } else if (ua.isAndroid || ua.isAndroidNative) {
-        if (androidUrl) {
-          res.redirect(androidUrl.url);
-        } else {
-          res.redirect(webUrl.url);
-        }
-      } else {
-        res.redirect(webUrl.url);
-      }
-    } else {
-      res.send({ ok: false, error: '', code: HttpStatus.NO_CONTENT });
-    }
-  } catch (error) {
-    res.send({ ok: false, error: error.message, code: HttpStatus.INTERNAL_SERVER_ERROR });
-  }
-});
 
 router.post('/', async (req: Request, res: Response) => {
   try {
     const db = req.db;
     const details = req.body.details;
+    const user_id = req.decoded.user_id;
     let code: any;
     do {
       code = randomString(4);
     } while (await serviceModel.checkCodeDup(db, code).length);
     const urlRedirect = process.env.HOST_URL + '/' + code
     const head = {
-      // user_id:
+      user_id: user_id,
       url_redirect: urlRedirect,
     }
     const id = await serviceModel.saveRedirect(db, head);
-    await serviceModel.updateExpired(db,id);
     const reDetails = [];
     for (const i of details) {
       const detail = {
