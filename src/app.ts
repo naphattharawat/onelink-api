@@ -18,9 +18,10 @@ import { Jwt } from './models/jwt';
 const useragent = require('express-useragent');
 import indexRoute from './routes/index';
 import memberRoute from './routes/member';
+import uploadRoute from './routes/upload';
 import loginRoute from './routes/login';
 import requestRoute from './routes/request';
-
+const uploads = require('./routes/uploads')
 // Assign router to the express.Router() instance
 const app: express.Application = express();
 
@@ -34,7 +35,7 @@ app.set('view engine', 'ejs');
 //uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname,'../public','favicon.ico')));
 app.use(logger('dev'));
-app.use(bodyParser.json({ limit: '5mb' }));
+app.use(bodyParser.json({ limit: '500mb' }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
@@ -96,6 +97,8 @@ let checkAuth = (req: Request, res: Response, next: NextFunction) => {
 }
 
 app.use('/login', loginRoute);
+app.use('/uploads', uploadRoute);
+// app.post('/uploads', uploads)
 app.use('/api', checkAuth, requestRoute);
 app.use('/member', checkAuth, memberRoute);
 app.use('/', indexRoute);

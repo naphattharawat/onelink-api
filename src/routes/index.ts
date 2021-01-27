@@ -17,29 +17,32 @@ router.get('/:code', async (req: Request, res: Response) => {
     const ua = req.useragent;
     const rs: any = await serviceModel.getRedirect(db, code);
     if (rs.length) {
-      const webUrl = find(rs, { 'type': 'WEB' });
-      const iosUrl = find(rs, { 'type': 'IOS' });
-      const androidUrl = find(rs, { 'type': 'ANDROID' });
-      console.log(webUrl);
 
-      // find device;
-      if (ua.isiPhone || ua.isiPhoneNative || ua.isiPad) {
-        if (iosUrl) {
-          res.redirect(iosUrl.url);
+      if (rs[0].type == 'QRCODE') {
+        const webUrl = find(rs, { 'type': 'WEB' });
+        const iosUrl = find(rs, { 'type': 'IOS' });
+        const androidUrl = find(rs, { 'type': 'ANDROID' });
+        // find device;
+        if (ua.isiPhone || ua.isiPhoneNative || ua.isiPad) {
+          if (iosUrl) {
+            res.redirect(iosUrl.url);
+          } else {
+            res.redirect(webUrl.url);
+          }
+        } else if (ua.isAndroid || ua.isAndroidNative) {
+          if (androidUrl) {
+            res.redirect(androidUrl.url);
+          } else {
+            res.redirect(webUrl.url);
+          }
         } else {
           res.redirect(webUrl.url);
         }
-      } else if (ua.isAndroid || ua.isAndroidNative) {
-        if (androidUrl) {
-          res.redirect(androidUrl.url);
-        } else {
-          res.redirect(webUrl.url);
-        }
-      } else {
-        res.redirect(webUrl.url);
+      } else if (rs[0].type == 'UPLOAD') {
+       
       }
     } else {
-      res.send({ ok: false, error: '', code: HttpStatus.NO_CONTENT });
+      res.send({ ok: false, error: 'ไม่พบ code ', code: HttpStatus.NO_CONTENT });
     }
   } catch (error) {
     res.send({ ok: false, error: error.message, code: HttpStatus.INTERNAL_SERVER_ERROR });
@@ -60,7 +63,7 @@ router.post('/', async (req: Request, res: Response) => {
       url_redirect: urlRedirect,
     }
     const id = await serviceModel.saveRedirect(db, head);
-    await serviceModel.updateExpired(db,id);
+    await serviceModel.updateExpired(db, id);
     const reDetails = [];
     for (const i of details) {
       const detail = {
