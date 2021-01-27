@@ -6,7 +6,7 @@ import { ServiceModel } from '../models/service';
 import * as HttpStatus from 'http-status-codes';
 import { v4 as uuidv4 } from 'uuid';
 const multer = require("multer");
-const uploadDir = process.env.PATH_IMAGE = './images';
+const uploadDir = process.env.PATH_IMAGE || './images';
 const IncomingForm = require('formidable').IncomingForm
 const fs = require('fs');
 const serviceModel = new ServiceModel();
