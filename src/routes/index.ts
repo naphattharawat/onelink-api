@@ -5,7 +5,8 @@ import * as HttpStatus from 'http-status-codes';
 import { ServiceModel } from '../models/service';
 import { find } from 'lodash';
 const jwt = new Jwt();
-
+const fs = require('fs');
+import * as path from 'path';
 const serviceModel = new ServiceModel();
 const router: Router = Router();
 
@@ -17,8 +18,7 @@ router.get('/:code', async (req: Request, res: Response) => {
     const ua = req.useragent;
     const rs: any = await serviceModel.getRedirect(db, code);
     if (rs.length) {
-
-      if (rs[0].type == 'QRCODE') {
+      if (rs[0].code_type == 'QRCODE') {
         const webUrl = find(rs, { 'type': 'WEB' });
         const iosUrl = find(rs, { 'type': 'IOS' });
         const androidUrl = find(rs, { 'type': 'ANDROID' });
@@ -38,8 +38,21 @@ router.get('/:code', async (req: Request, res: Response) => {
         } else {
           res.redirect(webUrl.url);
         }
-      } else if (rs[0].type == 'UPLOAD') {
-       
+      }
+      else if (rs[0].code_type == 'URL') {
+        const webUrl = find(rs, { 'type': 'WEB' });
+        res.redirect(webUrl.url);
+      } else if (rs[0].code_type == 'UPLOAD') {
+        const filePath = `${process.env.PATH_IMAGE}/${rs[0].filename}`;
+        const fileName = path.basename(filePath);
+        const mimeType = rs[0].mimetype;
+        res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
+        res.setHeader('Content-type', mimeType);
+        let filestream = fs.createReadStream(filePath);
+        filestream.pipe(res);
+      } else {
+        console.log(rs[0].code_type);
+        res.send({ ok: false, error: 'ผิดรูปแบบ', code: HttpStatus.NO_CONTENT });
       }
     } else {
       res.send({ ok: false, error: 'ไม่พบ code ', code: HttpStatus.NO_CONTENT });
@@ -53,13 +66,15 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const db = req.db;
     const details = req.body.details;
+    const type = req.body.type;
     let code: any;
     do {
       code = randomString(4);
     } while (await serviceModel.checkCodeDup(db, code).length);
     const urlRedirect = process.env.HOST_URL + '/' + code
     const head = {
-      // user_id:
+      type: type,
+      code,
       url_redirect: urlRedirect,
     }
     const id = await serviceModel.saveRedirect(db, head);
@@ -73,11 +88,12 @@ router.post('/', async (req: Request, res: Response) => {
       }
       reDetails.push(detail);
     }
-    const res: any = {
+    await serviceModel.saveRedirectDetails(db,reDetails);
+    const response: any = {
       code: code,
       url: urlRedirect
     }
-    res.send({ ok: true, rows: res });
+    res.send({ ok: true, rows: response });
   } catch (error) {
     res.send({ ok: false, error: error.message, code: HttpStatus.INTERNAL_SERVER_ERROR });
   }
