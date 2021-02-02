@@ -4,7 +4,7 @@ export class ServiceModel {
 
   getRedirect(db: Knex, code) {
     return db('redirects as r')
-      .select('r.code', 'r.url_redirect', 'r.expired_date', 'r.type as code_type', 'rd.*','up.mimetype','up.filename')
+      .select('r.code', 'r.url_redirect', 'r.expired_date', 'r.type as code_type', 'rd.*', 'up.mimetype', 'up.filename')
       .leftJoin('redirect_details as rd', 'rd.redirect_id', 'r.id')
       .leftJoin('uploads as up', 'up.redirect_id', 'r.id')
       .where('r.code', code)
@@ -12,9 +12,10 @@ export class ServiceModel {
       .where('r.is_deleted', 'N');
   }
 
-  getUploads(db: Knex, code) {
+  getUploads(db: Knex, code, password = '') {
     return db('uploads as r')
       .where('r.code', code)
+      .where('r.password', password)
       .where('r.is_actived', 'Y')
       .where('r.is_deleted', 'N');
   }
@@ -61,6 +62,7 @@ export class ServiceModel {
     var strRandom = '';
     //3digit = 238,328
     //4digit = 14,776,336
+    //5digit = 916,132,832
     var random = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     for (var i = 0; i < _digitLength; i++) { strRandom += random.charAt(Math.floor(Math.random() * random.length)); }
     return strRandom;

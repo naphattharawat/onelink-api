@@ -12,6 +12,8 @@ var sharp = require('sharp');
 const fs = require('fs');
 const serviceModel = new ServiceModel();
 import * as path from 'path';
+import * as crypto from 'crypto';
+
 
 var storage = multer.diskStorage({
   destination: function (req: any, file: any, cb: any) {
@@ -75,11 +77,15 @@ let upload = multer({ storage: storage });
 router.post('/', upload.any(), async (req: any, res: any) => {
   try {
     const db = req.db;
+    const password: any = req.body.password || '';
     if (req.files.length) {
-      sharp(`${process.env.PATH_IMAGE}/${req.files[0].filename}`).resize(200)
-        .jpeg({ quality: 50 }).toFile(process.env.PATH_IMAGE
-          + '/thumbnail_' + req.files[0].filename, (err, info) => {
-          });
+      // req.files[0].mimetype
+      if (req.files[0].mimetype.include('image')) {
+        sharp(`${process.env.PATH_IMAGE}/${req.files[0].filename}`).resize(200)
+          .jpeg({ quality: 50 }).toFile(process.env.PATH_IMAGE
+            + '/thumbnail_' + req.files[0].filename, (err, info) => {
+            });
+      }
       const uuid = uuidv4();
       let code: any;
       do {
@@ -104,6 +110,7 @@ router.post('/', upload.any(), async (req: any, res: any) => {
       obj.code = code;
       obj.url_redirect = urlRedirect;
       obj.redirect_id = redirectId;
+      obj.password = crypto.createHash('md5').update(password).digest('hex');
       await serviceModel.saveUploads(req.db, obj);
       // await serviceModel.updateExpiredUpload(db, uuid);
 
@@ -115,9 +122,13 @@ router.post('/', upload.any(), async (req: any, res: any) => {
         code: code,
         shortUrl: shortUrlRedirect,
         url: urlRedirect,
-        urlPreview,
         urlThumbnail
       }
+      if (req.files[0].mimetype.include('image')) {
+        response.urlThumbnail = urlThumbnail;
+        response.urlPreview = urlPreview;
+      }
+
       console.log(response);
 
       res.send({ ok: true, rows: response });
@@ -135,7 +146,9 @@ router.get('/thumbnail/:code', async (req: Request, res: Response) => {
   try {
     const db = req.db;
     const code = req.params.code;
-    const rs: any = await serviceModel.getUploads(db, code);
+    const password: any = req.body.password || '';
+    const _password = crypto.createHash('md5').update(password).digest('hex');
+    const rs: any = await serviceModel.getUploads(db, code, _password);
     if (rs.length) {
       if (rs.length) {
         const filePath = `${process.env.PATH_IMAGE}/thumbnail_${rs[0].filename}`;
@@ -163,20 +176,25 @@ router.get('/:code', async (req: Request, res: Response) => {
   try {
     const db = req.db;
     const code = req.params.code;
+    const password = req.query.password || '';
     const ua = req.useragent;
-    const rs: any = await serviceModel.getUploads(db, code);
+    const _password = crypto.createHash('md5').update(password).digest('hex');
+    const rs: any = await serviceModel.getUploads(db, code, _password);
     if (rs.length) {
       if (rs.length) {
         const filePath = `${process.env.PATH_IMAGE}/${rs[0].filename}`;
         const fileName = path.basename(filePath);
         const mimeType = rs[0].mimetype;
 
-        res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
-        res.setHeader('Content-type', mimeType);
+        if (fs.existsSync(filePath)) {
+          res.setHeader('Content-disposition', 'attachment; filename=' + fileName);
+          res.setHeader('Content-type', mimeType);
 
-        let filestream = fs.createReadStream(filePath);
-        filestream.pipe(res);
-        // res.render('preview', { img: filePath });
+          let filestream = fs.createReadStream(filePath);
+          filestream.pipe(res);
+        } else {
+          res.send({ ok: false, error: 'ไม่พบไฟล์ภาพ', statusCode: 500 });
+        }
       } else {
         res.send({ ok: false, error: 'image not found!', statusCode: 500 });
       }
@@ -193,7 +211,9 @@ router.get('/preview/:code', async (req: Request, res: Response) => {
     const db = req.db;
     const code = req.params.code;
     const ua = req.useragent;
-    const rs: any = await serviceModel.getUploads(db, code);
+    const password: any = req.body.password || '';
+    const _password = crypto.createHash('md5').update(password).digest('hex');
+    const rs: any = await serviceModel.getUploads(db, code, _password);
     if (rs.length) {
       if (rs.length) {
         const filePath = `http://localhost:3000/uploads/${code}`;
